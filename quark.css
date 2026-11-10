@@ -1,0 +1,191 @@
+@define-color quark_bg      #1e1e1e;   /* coincide con el esquema Adwaita-dark */
+@define-color quark_panel   #181819;
+@define-color quark_header  #202022;
+@define-color quark_border  #2d2d30;
+@define-color quark_text    #d4d4d8;
+@define-color quark_dim     #85858f;
+@define-color quark_accent  #7aa2f7;
+@define-color quark_danger  #f7768e;
+ 
+/* ---------- Ventana ---------- */
+.quark-window {
+    background-color: @quark_bg;
+    color: @quark_text;
+}
+ 
+/* ---------- Barra de título ---------- */
+.quark-window headerbar {
+    background: @quark_header;
+    color: @quark_text;
+    border-bottom: 1px solid @quark_border;
+    box-shadow: none;
+    min-height: 44px;
+}
+ 
+.quark-window headerbar button {
+    background: transparent;
+    color: @quark_text;
+    border: none;
+    box-shadow: none;
+    border-radius: 8px;
+    padding: 4px 9px;
+    margin: 0 1px;
+    transition: background 120ms ease;
+}
+ 
+.quark-window headerbar button:hover {
+    background: alpha(@quark_text, 0.09);
+}
+ 
+.quark-window headerbar button:active,
+.quark-window headerbar button:checked {
+    background: alpha(@quark_accent, 0.22);
+    color: @quark_accent;
+}
+ 
+/* ---------- Panel lateral ---------- */
+.quark-sidebar {
+    background-color: @quark_panel;
+    border-right: 1px solid @quark_border;
+}
+ 
+.quark-sidebar-header {
+    padding: 6px 6px 6px 14px;
+    border-bottom: 1px solid @quark_border;
+}
+ 
+.quark-sidebar-header label {
+    color: @quark_dim;
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+ 
+.quark-sidebar-header button {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+    border-radius: 6px;
+    color: @quark_dim;
+}
+ 
+.quark-sidebar-header button:hover {
+    background: alpha(@quark_text, 0.09);
+    color: @quark_text;
+}
+ 
+.quark-sidebar scrolledwindow,
+.quark-sidebar listview {
+    background: transparent;
+    color: @quark_text;
+}
+ 
+.quark-sidebar listview {
+    padding: 6px 0;
+}
+ 
+.quark-sidebar listview > row {
+    border-radius: 6px;
+    margin: 1px 6px;
+    padding: 3px 4px;
+    transition: background 100ms ease;
+}
+ 
+.quark-sidebar listview > row:hover {
+    background: alpha(@quark_text, 0.06);
+}
+ 
+.quark-sidebar listview > row:selected {
+    background: alpha(@quark_accent, 0.22);
+    color: @quark_text;
+}
+ 
+.quark-sidebar listview image {
+    color: @quark_dim;
+}
+ 
+/* ---------- Pestañas ---------- */
+.quark-window notebook > header {
+    background: @quark_panel;
+    border: none;
+    border-bottom: 1px solid @quark_border;
+    padding: 4px 6px 0 6px;
+    box-shadow: none;
+}
+ 
+.quark-window notebook > header > tabs > tab {
+    background: transparent;
+    color: @quark_dim;
+    border: none;
+    box-shadow: none;
+    border-radius: 8px 8px 0 0;
+    padding: 4px 10px;
+    margin: 0 2px;
+    min-height: 28px;
+    transition: background 120ms ease, color 120ms ease;
+}
+ 
+.quark-window notebook > header > tabs > tab:hover {
+    background: alpha(@quark_text, 0.05);
+    color: @quark_text;
+}
+ 
+.quark-window notebook > header > tabs > tab:checked {
+    background: @quark_bg;
+    color: @quark_text;
+    box-shadow: inset 0 2px 0 @quark_accent;
+}
+ 
+.quark-window notebook > header > tabs > tab button {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    min-width: 18px;
+    min-height: 18px;
+    padding: 0;
+    margin-left: 6px;
+    border-radius: 9px;
+    color: @quark_dim;
+}
+ 
+.quark-window notebook > header > tabs > tab button:hover {
+    background: alpha(@quark_danger, 0.9);
+    color: @quark_bg;
+}
+ 
+.quark-window notebook > stack {
+    background: @quark_bg;
+}
+ 
+/* ---------- Editor ---------- */
+.quark-window textview {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 11pt;
+}
+ 
+.quark-window scrollbar slider {
+    min-width: 7px;
+    min-height: 7px;
+    border-radius: 4px;
+    background-color: alpha(@quark_text, 0.25);
+}
+ 
+.quark-window scrollbar slider:hover {
+    background-color: alpha(@quark_accent, 0.8);
+}
+ 
+/* ---------- Barra de estado ---------- */
+.quark-statusbar {
+    background: @quark_panel;
+    border-top: 1px solid @quark_border;
+    padding: 3px 14px;
+    color: @quark_dim;
+    font-size: 0.85em;
+}
+ 
+/* ---------- Separador del panel ---------- */
+.quark-window paned > separator {
+    background: @quark_border;
+    min-width: 1px;
+}
+ 
