@@ -105,18 +105,149 @@
           </object>
         </property>
 
-        <!-- Zona de edición -->
+        <!-- Zona de edición: editor arriba, Fermion abajo, barra de estado
+             SIEMPRE debajo del paned (fuera de él) -->
         <property name="end-child">
           <object class="GtkBox" id="box_editor">
             <property name="orientation">vertical</property>
+
             <child>
-              <object class="GtkNotebook" id="nb">
+              <object class="GtkPaned" id="paned_term">
+                <property name="orientation">vertical</property>
                 <property name="hexpand">TRUE</property>
                 <property name="vexpand">TRUE</property>
-                <property name="scrollable">TRUE</property>
-                <property name="show-border">FALSE</property>
+                <property name="resize-start-child">TRUE</property>
+                <property name="shrink-start-child">FALSE</property>
+                <property name="resize-end-child">FALSE</property>
+                <property name="shrink-end-child">FALSE</property>
+
+                <!-- Arriba: pestañas del editor -->
+                <property name="start-child">
+                  <object class="GtkNotebook" id="nb">
+                    <property name="hexpand">TRUE</property>
+                    <property name="vexpand">TRUE</property>
+                    <property name="scrollable">TRUE</property>
+                    <property name="show-border">FALSE</property>
+                  </object>
+                </property>
+
+                <!-- Abajo: terminal Fermion (oculta por defecto) -->
+                <property name="end-child">
+                  <object class="GtkBox" id="fermion_panel">
+                    <property name="orientation">vertical</property>
+                    <property name="visible">FALSE</property>
+                    <style>
+                      <class name="fermion"/>
+                    </style>
+
+                    <child>
+                      <object class="GtkBox">
+                        <property name="orientation">horizontal</property>
+                        <property name="spacing">8</property>
+                        <style>
+                          <class name="fermion-cabecera"/>
+                        </style>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="label">FERMION</property>
+                            <style>
+                              <class name="fermion-titulo"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="fermion_lbl_cwd">
+                            <property name="hexpand">TRUE</property>
+                            <property name="xalign">0</property>
+                            <property name="ellipsize">start</property>
+                            <style>
+                              <class name="fermion-cwd"/>
+                              <class name="monospace"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="fermion_btn_limpiar">
+                            <property name="icon-name">edit-clear-all-symbolic</property>
+                            <property name="focus-on-click">FALSE</property>
+                            <property name="tooltip-text">Limpiar (Ctrl+L)</property>
+                            <style>
+                              <class name="flat"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="fermion_btn_cerrar">
+                            <property name="icon-name">window-close-symbolic</property>
+                            <property name="action-name">win.terminal</property>
+                            <property name="focus-on-click">FALSE</property>
+                            <property name="tooltip-text">Ocultar (Ctrl+J / F12)</property>
+                            <style>
+                              <class name="flat"/>
+                            </style>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkScrolledWindow">
+                        <property name="vexpand">TRUE</property>
+                        <property name="hscrollbar-policy">never</property>
+                        <property name="min-content-height">100</property>
+                        <child>
+                          <object class="GtkTextView" id="fermion_salida">
+                            <property name="editable">FALSE</property>
+                            <property name="cursor-visible">FALSE</property>
+                            <property name="monospace">TRUE</property>
+                            <property name="wrap-mode">word-char</property>
+                            <property name="left-margin">10</property>
+                            <property name="right-margin">10</property>
+                            <property name="top-margin">6</property>
+                            <property name="bottom-margin">6</property>
+                            <style>
+                              <class name="fermion-salida"/>
+                            </style>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
+                    <child>
+                      <object class="GtkBox">
+                        <property name="orientation">horizontal</property>
+                        <property name="spacing">8</property>
+                        <style>
+                          <class name="fermion-fila-entrada"/>
+                        </style>
+                        <child>
+                          <object class="GtkLabel" id="fermion_prompt">
+                            <property name="ellipsize">middle</property>
+                            <property name="max-width-chars">24</property>
+                            <style>
+                              <class name="fermion-prompt"/>
+                              <class name="monospace"/>
+                            </style>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="fermion_entrada">
+                            <property name="hexpand">TRUE</property>
+                            <property name="placeholder-text">Escribe una orden y pulsa Enter…</property>
+                            <style>
+                              <class name="fermion-entrada"/>
+                              <class name="monospace"/>
+                            </style>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </property>
               </object>
             </child>
+
+            <!-- Barra de estado: hermana del paned, nunca dentro de él -->
             <child>
               <object class="GtkBox" id="barra_estado">
                 <property name="orientation">horizontal</property>
