@@ -178,3 +178,10 @@ exit             (oculta el panel)
 ## Licencia
  
 GPL-3.0-o-posterior (ver cabecera de `quarkgtk.c`).
+
+## 🙏 Agradecimientos
+
+Este proyecto no habría sido posible sin:
+- **GTK4** y **GtkSourceView**, por ser la base de la interfaz.
+- **Claude**, que ayudó con una parte importante del *boilerplate* de la UI y la integración de la terminal.
+- **La comunidad de software libre**, por mantener los estándares que hacen posible este ecosistema.
