@@ -46,6 +46,13 @@
             <property name="tooltip-text">Guardar como… (Ctrl+Mayús+S)</property>
           </object>
         </child>
+        <child type="end">
+          <object class="GtkButton" id="btn_formatear">
+            <property name="icon-name">format-indent-more-symbolic</property>
+            <property name="action-name">win.formatear</property>
+            <property name="tooltip-text">Formatear código C (Ctrl+Mayús+I)</property>
+          </object>
+        </child>
       </object>
     </property>
 

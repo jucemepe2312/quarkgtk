@@ -28,6 +28,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "quark_formato.h"
+
 /* Casi todos los callbacks de GTK reciben parámetros que no usamos; así el
  * comando `gcc -Wall -Wextra` sale limpio sin necesidad de -Wno-unused-parameter. */
 #if defined(__GNUC__)
@@ -1675,6 +1677,140 @@ static void act_guardar_como(GSimpleAction* a, GVariant* p, gpointer ud)
     }
 }
 
+/* ---------- Formateador de código C ---------- */
+
+static guint aviso_estado_id = 0;
+static gboolean aviso_clang_mostrado = FALSE;
+
+static gboolean aviso_estado_expira(gpointer data)
+{
+    aviso_estado_id = 0;
+    actualizar_estado();
+    return G_SOURCE_REMOVE;
+}
+
+/* Mensaje transitorio en la barra de estado (sin diálogo modal). */
+static void aviso_estado(const char* texto)
+{
+    if (lbl_pos == NULL)
+    {
+        return;
+    }
+
+    gtk_label_set_text(lbl_pos, texto);
+
+    if (aviso_estado_id != 0)
+    {
+        g_source_remove(aviso_estado_id);
+    }
+
+    aviso_estado_id = g_timeout_add_seconds(6, aviso_estado_expira, NULL);
+}
+
+static gboolean doc_es_c(Doc* d)
+{
+    GtkSourceLanguage* lang = gtk_source_buffer_get_language(d->buffer);
+    if (lang == NULL)
+    {
+        return FALSE;
+    }
+
+    const char* id = gtk_source_language_get_id(lang);
+    return g_strcmp0(id, "c") == 0 || g_strcmp0(id, "cpp") == 0
+           || g_strcmp0(id, "chdr") == 0 || g_strcmp0(id, "cpphdr") == 0;
+}
+
+/* Formatea el documento. Devuelve TRUE si quedó formateado (aunque no hiciera falta tocarlo). */
+static gboolean formatear_doc(Doc* d)
+{
+    if (!doc_es_c(d))
+    {
+        mostrar_error("Formatear", "Solo disponible para C/C++");
+        return FALSE;
+    }
+
+    GtkTextBuffer* tb = GTK_TEXT_BUFFER(d->buffer);
+    GtkTextIter ini, fin;
+    gtk_text_buffer_get_bounds(tb, &ini, &fin);
+    char* original = gtk_text_buffer_get_text(tb, &ini, &fin, FALSE);
+
+    GError* err = NULL;
+    gboolean alternativa = FALSE;
+    char* nuevo = quark_formatear_c_con(original, QUARK_FORMATO_AUTO, &alternativa, &err);
+    if (nuevo == NULL)
+    {
+        mostrar_error("No se pudo formatear", err != NULL ? err->message : NULL);
+        g_clear_error(&err);
+        g_free(original);
+        return FALSE;
+    }
+
+    const char* aviso = NULL;
+    if (alternativa && !aviso_clang_mostrado)
+    {
+        aviso_clang_mostrado = TRUE;
+        aviso = "clang-format no disponible: se usó el formateador interno";
+    }
+
+    if (strcmp(original, nuevo) == 0)
+    {
+        /* idéntico: el buffer no se toca ni se marca como modificado */
+        gtk_widget_grab_focus(GTK_WIDGET(d->view));
+        aviso_estado(aviso != NULL ? aviso : "El código ya está formateado");
+        g_free(original);
+        g_free(nuevo);
+        return TRUE;
+    }
+
+    /* cursor y selección, trasladados al texto nuevo */
+    GtkTextIter it_ins, it_sel;
+    gtk_text_buffer_get_iter_at_mark(tb, &it_ins, gtk_text_buffer_get_insert(tb));
+    gtk_text_buffer_get_iter_at_mark(tb, &it_sel, gtk_text_buffer_get_selection_bound(tb));
+    glong off_ins = quark_formato_mapear_posicion(original, nuevo, gtk_text_iter_get_offset(&it_ins));
+    glong off_sel = quark_formato_mapear_posicion(original, nuevo, gtk_text_iter_get_offset(&it_sel));
+
+    /* un solo paso de deshacer: borrar + insertar dentro de la misma acción de usuario */
+    gtk_text_buffer_begin_user_action(tb);
+    gtk_text_buffer_get_bounds(tb, &ini, &fin);
+    gtk_text_buffer_delete(tb, &ini, &fin);
+    gtk_text_buffer_insert(tb, &ini, nuevo, -1);
+    gtk_text_buffer_end_user_action(tb);
+
+    GtkTextIter a, b;
+    gtk_text_buffer_get_iter_at_offset(tb, &a, (int) off_ins);
+    gtk_text_buffer_get_iter_at_offset(tb, &b, (int) off_sel);
+    gtk_text_buffer_select_range(tb, &a, &b);
+    gtk_text_view_scroll_mark_onscreen(GTK_TEXT_VIEW(d->view), gtk_text_buffer_get_insert(tb));
+    gtk_widget_grab_focus(GTK_WIDGET(d->view));
+
+    if (aviso != NULL)
+    {
+        aviso_estado(aviso);
+    }
+
+    g_free(original);
+    g_free(nuevo);
+    return TRUE;
+}
+
+static void act_formatear(GSimpleAction* a, GVariant* p, gpointer ud)
+{
+    Doc* d = doc_actual();
+    if (d != NULL)
+    {
+        formatear_doc(d);
+    }
+}
+
+static void act_formatear_guardar(GSimpleAction* a, GVariant* p, gpointer ud)
+{
+    Doc* d = doc_actual();
+    if (d != NULL && formatear_doc(d))
+    {
+        guardar_doc(d, FALSE, NULL, NULL);
+    }
+}
+
 static void act_cerrar_pestana(GSimpleAction* a, GVariant* p, gpointer ud)
 {
     Doc* d = doc_actual();
@@ -1696,6 +1832,8 @@ static const GActionEntry acciones[] = {
     {.name = "abrir-carpeta", .activate = act_abrir_carpeta},
     {.name = "guardar", .activate = act_guardar},
     {.name = "guardar-como", .activate = act_guardar_como},
+    {.name = "formatear", .activate = act_formatear},
+    {.name = "formatear-guardar", .activate = act_formatear_guardar},
     {.name = "cerrar-pestana", .activate = act_cerrar_pestana},
     {.name = "sidebar", .state = "true", .change_state = act_sidebar_estado},
     {.name = "terminal", .state = "false", .change_state = act_terminal_estado},
@@ -1861,6 +1999,7 @@ static void inicio(GApplication* app, gpointer user_data)
     atajo(GTK_APPLICATION(app), "win.abrir-carpeta", "<Control><Shift>o", NULL);
     atajo(GTK_APPLICATION(app), "win.guardar", "<Control>s", NULL);
     atajo(GTK_APPLICATION(app), "win.guardar-como", "<Control><Shift>s", NULL);
+    atajo(GTK_APPLICATION(app), "win.formatear", "<Control><Shift>i", "<Control><Shift>I");
     atajo(GTK_APPLICATION(app), "win.cerrar-pestana", "<Control>w", NULL);
     atajo(GTK_APPLICATION(app), "win.sidebar", "<Control>b", "F9");
     atajo(GTK_APPLICATION(app), "win.terminal", "<Control>j", "F12");
