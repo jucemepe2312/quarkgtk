@@ -1,0 +1,17 @@
+/*
+ * quark-dark.css - Paleta oscura de Quark.
+ *
+ * Solo contiene @define-color; los estilos que los usan están en quark.css.
+ * Quark carga uno de los dos archivos (quark-dark.css / quark-light.css) en un
+ * proveedor aparte y lo recarga al cambiar de tema (win.toggle-theme), así que
+ * cada archivo debe definir exactamente los mismos nombres.
+ * Contraste mínimo: texto 11:1, tenue y peligro >= 4.5:1 sobre panel y cabecera.
+ */
+@define-color quark_bg       #1e1e1e;
+@define-color quark_panel    #181819;
+@define-color quark_header   #202022;
+@define-color quark_border   #2d2d30;
+@define-color quark_text     #d4d4d8;
+@define-color quark_dim      #8e8e98;
+@define-color quark_accent   #7aa2f7;
+@define-color quark_danger   #f7768e;

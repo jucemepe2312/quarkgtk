@@ -1,11 +1,6 @@
-@define-color quark_bg      #1e1e1e;   /* coincide con el esquema Adwaita-dark */
-@define-color quark_panel   #181819;
-@define-color quark_header  #202022;
-@define-color quark_border  #2d2d30;
-@define-color quark_text    #d4d4d8;
-@define-color quark_dim     #85858f;
-@define-color quark_accent  #7aa2f7;
-@define-color quark_danger  #f7768e;
+/* Los colores (@quark_bg, @quark_text, @quark_accent…) están en quark-dark.css y
+ * quark-light.css; Quark carga el que toque y los intercambia al cambiar de tema.
+ * Aquí no debe haber colores fijos: usa siempre @quark_* o alpha(@quark_*, n). */
 
 /* ---------- Ventana ---------- */
 .quark-window {
@@ -272,4 +267,11 @@ entry.fermion-entrada {
 
 entry.fermion-entrada:focus-within {
     border-color: @quark_accent;
+}
+
+/* El texto de ayuda lleva opacidad propia en GTK; con ella el contraste cae por
+ * debajo de 4.5:1 en el tema claro. */
+entry.fermion-entrada text placeholder {
+    color: @quark_dim;
+    opacity: 1;
 }

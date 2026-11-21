@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  quark-light.xml - Esquema de colores claro de Quark para GtkSourceView 5.
+
+  GtkSourceView pinta el resaltado con GtkTextTag (no con nodos CSS), así que
+  estos colores NO se pueden poner en quark.css. La paleta de abajo repite la
+  de quark-light.css (@define-color quark_*); si cambias una, cambia la otra.
+
+  Se instala junto a quarkgtk.ui y quark.css; Quark añade esa carpeta a la ruta de
+  búsqueda de esquemas al arrancar (ver esquemas_registrar en quarkgtk.c).
+-->
+<style-scheme id="quark-light" name="Quark Light" version="1.0">
+  <author>Quark</author>
+  <description>Esquema claro a juego con la paleta de Quark</description>
+
+  <!-- Paleta de la interfaz (igual que quark-light.css) -->
+  <color name="bg"        value="#fafafa"/>
+  <color name="panel"     value="#f0f0f2"/>
+  <color name="texto"     value="#2b2b33"/>
+  <color name="tenue"     value="#646470"/>
+  <color name="acento"    value="#2a5bd7"/>
+  <color name="peligro"   value="#bd2b45"/>
+
+  <!-- Colores de sintaxis -->
+  <color name="morado"    value="#7847bd"/>
+  <color name="cian"      value="#0b738d"/>
+  <color name="celeste"   value="#0a7490"/>
+  <color name="verde"     value="#3b7a1d"/>
+  <color name="naranja"   value="#a85400"/>
+  <color name="amarillo"  value="#8a5f00"/>
+
+  <!-- Mezclas ya calculadas sobre @bg (el formato no admite alfa) -->
+  <color name="linea"       value="#f0f0f4"/>
+  <color name="seleccion"   value="#cdd8f3"/>
+  <color name="sel-inactiva" value="#dde4f5"/>
+  <color name="par-ok"      value="#b1c2ee"/>
+  <color name="par-mal"     value="#f3d9dc"/>
+  <color name="busqueda"    value="#f6e2a0"/>
+
+  <!-- ===== Interfaz del editor ===== -->
+  <style name="text"                  foreground="texto" background="bg"/>
+  <style name="selection"             foreground="texto" background="seleccion"/>
+  <style name="selection-unfocused"   foreground="texto" background="sel-inactiva"/>
+  <style name="cursor"                foreground="acento"/>
+  <style name="secondary-cursor"      foreground="tenue"/>
+  <style name="current-line"          background="linea"/>
+  <style name="line-numbers"          foreground="tenue" background="panel"/>
+  <style name="current-line-number"   foreground="texto" background="panel" bold="true"/>
+  <style name="draw-spaces"           foreground="#c8c8d0"/>
+  <style name="background-pattern"    background="panel"/>
+  <style name="right-margin"          foreground="#c8c8d0" background="panel"/>
+  <style name="search-match"          background="busqueda"/>
+
+  <!-- Coincidencia de corchetes: el que cierra queda resaltado en azul;
+       si no hay pareja, se marca en rojo con subrayado. -->
+  <style name="bracket-match"         foreground="texto" background="par-ok" bold="true"/>
+  <style name="bracket-mismatch"      foreground="peligro" background="par-mal" underline="single"/>
+
+  <!-- ===== Sintaxis (def:* lo heredan C, C++, y casi todos los lenguajes) ===== -->
+  <style name="def:comment"             foreground="tenue" italic="true"/>
+  <style name="def:shebang"             foreground="tenue" italic="true" bold="true"/>
+  <style name="def:doc-comment-element" foreground="tenue" italic="true" bold="true"/>
+
+  <style name="def:keyword"             foreground="morado"/>
+  <style name="def:statement"           foreground="morado"/>
+  <style name="def:type"                foreground="cian"/>
+  <style name="def:function"            foreground="acento"/>
+  <style name="def:builtin"             foreground="acento"/>
+  <style name="def:identifier"          foreground="texto"/>
+  <style name="def:operator"            foreground="celeste"/>
+
+  <style name="def:preprocessor"        foreground="amarillo"/>
+  <style name="def:include"             foreground="amarillo"/>
+
+  <style name="def:string"              foreground="verde"/>
+  <style name="def:character"           foreground="verde"/>
+  <style name="def:special-char"        foreground="celeste"/>
+
+  <style name="def:constant"            foreground="naranja"/>
+  <style name="def:special-constant"    foreground="naranja" bold="true"/>
+  <style name="def:boolean"             foreground="naranja" bold="true"/>
+  <style name="def:number"              foreground="naranja"/>
+  <style name="def:decimal"             foreground="naranja"/>
+  <style name="def:base-n-integer"      foreground="naranja"/>
+  <style name="def:floating-point"      foreground="naranja"/>
+  <style name="def:complex"             foreground="naranja"/>
+
+  <style name="def:note"                foreground="celeste" bold="true"/>
+  <style name="def:warning"             foreground="amarillo" underline="single"/>
+  <style name="def:error"               foreground="peligro" underline="error"/>
+  <style name="def:underlined"          underline="single"/>
+</style-scheme>

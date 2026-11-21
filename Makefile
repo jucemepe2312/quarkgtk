@@ -19,12 +19,16 @@ bin:
 	@mkdir -p bin
 
 run: $(TARGET)
-	./$(TARGET)
+	QUARK_DATADIR=src ./$(TARGET)
 
 install: $(TARGET)
 	install -Dm755 $(TARGET) /usr/local/bin/quark
 	install -Dm644 src/quarkgtk.ui /usr/local/share/quark/quarkgtk.ui
 	install -Dm644 src/quark.css    /usr/local/share/quark/quark.css
+	install -Dm644 src/quark-dark.css /usr/local/share/quark/quark-dark.css
+	install -Dm644 src/quark-light.css /usr/local/share/quark/quark-light.css
+	install -Dm644 src/quark-dark.xml /usr/local/share/quark/quark-dark.xml
+	install -Dm644 src/quark-light.xml /usr/local/share/quark/quark-light.xml
 
 uninstall:
 	rm -f /usr/local/bin/quark

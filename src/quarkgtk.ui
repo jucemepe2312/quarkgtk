@@ -33,6 +33,13 @@
           </object>
         </child>
         <child type="end">
+          <object class="GtkToggleButton" id="btn_tema">
+            <property name="icon-name">weather-clear-night-symbolic</property>
+            <property name="action-name">win.toggle-theme</property>
+            <property name="tooltip-text">Tema oscuro (Ctrl+Mayús+D)</property>
+          </object>
+        </child>
+        <child type="end">
           <object class="GtkButton" id="btns">
             <property name="icon-name">document-save-symbolic</property>
             <property name="action-name">win.guardar</property>

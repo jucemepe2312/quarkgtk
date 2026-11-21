@@ -19,6 +19,7 @@
 #include <gtk/gtk.h>
 #include <gtksourceview/gtksource.h>
 #include <glib-unix.h>
+#include <glib/gstdio.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -36,7 +37,7 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 
-#define APPLICATION_ID "io.github.julio.Quark"
+#define APPLICATION_ID "julio.github.quark"
 #define ATRIBUTOS_DIR \
     "standard::name,standard::display-name,standard::type,standard::symbolic-icon"
 
@@ -100,7 +101,12 @@ static char* ruta_recurso(const char* nombre)
     }
 
     /* ojo: getenv y dir_exe pueden ser NULL, así que se saltan en vez de cortar el bucle */
-    const char* candidatos[] = {g_getenv("QUARK_DATADIR"), dir_exe, QUARK_DATADIR, "."};
+    const char* candidatos[] = {
+        g_getenv("QUARK_DATADIR"),
+        dir_exe,
+        QUARK_DATADIR,
+        "."
+    };
     char* resultado = NULL;
 
     for (gsize i = 0; i < G_N_ELEMENTS(candidatos) && resultado == NULL; i++)
@@ -123,6 +129,119 @@ static char* ruta_recurso(const char* nombre)
 
     g_free(dir_exe);
     return resultado;
+}
+
+/* ---------- Tema y configuración ----------
+ *
+ * Archivo de configuración: $XDG_CONFIG_HOME/quark/config
+ * (normalmente ~/.config/quark/config). Es un archivo de claves de GLib
+ * (GKeyFile), UTF-8, un solo grupo:
+ *
+ *   [Quark]
+ *   tema=oscuro
+ *
+ * Claves:
+ *   tema   "oscuro" o "claro". Si falta o tiene otro valor se usa "oscuro".
+ *
+ * Los comentarios (líneas que empiezan por #) y las claves desconocidas se
+ * conservan al guardar. Si el archivo no existe se crea al cambiar el tema.
+ *
+ * Los colores de la interfaz están en quark-dark.css y quark-light.css (solo
+ * @define-color, intercambiables en caliente); quark.css solo los usa. Los del
+ * código están en quark-dark.xml y quark-light.xml (esquemas de GtkSourceView).
+ */
+#define CONFIG_GRUPO "Quark"
+
+static gboolean tema_oscuro = TRUE;
+static GtkCssProvider* css_colores = NULL;
+static GKeyFile* config = NULL;
+
+static char* config_ruta(void)
+{
+    return g_build_filename(g_get_user_config_dir(), "quark", "config", NULL);
+}
+
+static void config_cargar(void)
+{
+    char* ruta = config_ruta();
+    GError* err = NULL;
+
+    config = g_key_file_new();
+    if (!g_key_file_load_from_file(config, ruta, G_KEY_FILE_KEEP_COMMENTS, &err))
+    {
+        if (!g_error_matches(err, G_FILE_ERROR, G_FILE_ERROR_NOENT))
+        {
+            g_warning("No se pudo leer %s: %s", ruta, err->message);
+        }
+
+        /* archivo ausente o dañado: se parte de una configuración vacía */
+        g_clear_error(&err);
+        g_key_file_free(config);
+        config = g_key_file_new();
+    }
+
+    g_free(ruta);
+}
+
+static void config_guardar(void)
+{
+    if (config == NULL)
+    {
+        return;
+    }
+
+    char* ruta = config_ruta();
+    char* dir = g_path_get_dirname(ruta);
+    GError* err = NULL;
+
+    g_mkdir_with_parents(dir, 0700);
+    if (!g_key_file_save_to_file(config, ruta, &err))
+    {
+        g_warning("No se pudo guardar %s: %s", ruta, err->message);
+        g_clear_error(&err);
+    }
+
+    g_free(dir);
+    g_free(ruta);
+}
+
+static gboolean config_tema_oscuro(void)
+{
+    char* valor = g_key_file_get_string(config, CONFIG_GRUPO, "tema", NULL);
+    gboolean oscuro = g_strcmp0(valor, "claro") != 0;
+
+    g_free(valor);
+    return oscuro;
+}
+
+static void css_cargar_texto(GtkCssProvider* proveedor, const char* texto)
+{
+#if GTK_CHECK_VERSION(4, 12, 0)
+    gtk_css_provider_load_from_string(proveedor, texto);
+#else
+    gtk_css_provider_load_from_data(proveedor, texto, -1);
+#endif
+}
+
+/* Carga en `css_colores` la paleta del tema actual. Volver a cargar el mismo
+ * proveedor hace que GTK reevalúe el estilo de todos los widgets. */
+static void css_cargar_colores(void)
+{
+    const char* nombre = tema_oscuro ? "quark-dark.css" : "quark-light.css";
+    char* ruta = ruta_recurso(nombre);
+    char* texto = NULL;
+
+    if (ruta == NULL || !g_file_get_contents(ruta, &texto, NULL, NULL))
+    {
+        g_warning("No se encontró %s; los colores del tema no se aplicarán", nombre);
+    }
+    else
+    {
+        css_cargar_texto(css_colores, texto);
+    }
+
+    g_free(texto);
+    g_free(ruta);
 }
 
 static void mostrar_error(const char* titulo, const char* detalle)
@@ -188,9 +307,9 @@ static char* doc_nombre(Doc* d)
 static gboolean doc_es_virgen(Doc* d)
 {
     return d != NULL
-    && gtk_source_file_get_location(d->sfile) == NULL
-    && !doc_modificado(d)
-    && gtk_text_buffer_get_char_count(GTK_TEXT_BUFFER(d->buffer)) == 0;
+        && gtk_source_file_get_location(d->sfile) == NULL
+        && !doc_modificado(d)
+        && gtk_text_buffer_get_char_count(GTK_TEXT_BUFFER(d->buffer)) == 0;
 }
 
 static void refrescar_ventana(void)
@@ -234,8 +353,8 @@ static void actualizar_estado(void)
     gtk_text_buffer_get_iter_at_mark(tb, &it, gtk_text_buffer_get_insert(tb));
 
     char* pos = g_strdup_printf("Ln %d, Col %d",
-        gtk_text_iter_get_line(&it) + 1,
-        gtk_source_view_get_visual_column(d->view, &it) + 1);
+                                gtk_text_iter_get_line(&it) + 1,
+                                gtk_source_view_get_visual_column(d->view, &it) + 1);
     gtk_label_set_text(lbl_pos, pos);
     g_free(pos);
 
@@ -336,7 +455,12 @@ static void pedir_confirmacion(Doc* doc, ContinuarCb cb, gpointer data)
     GtkAlertDialog* d = gtk_alert_dialog_new("¿Guardar los cambios en «%s»?", nombre);
     gtk_alert_dialog_set_detail(d, "Si no los guardas, se perderán.");
 
-    const char * botones[] = {"Cancelar", "Descartar", "Guardar", NULL};
+    const char * botones[] = {
+        "Cancelar",
+        "Descartar",
+        "Guardar",
+        NULL
+    };
     gtk_alert_dialog_set_buttons(d, botones);
     gtk_alert_dialog_set_cancel_button(d, 0);
     gtk_alert_dialog_set_default_button(d, 2);
@@ -535,7 +659,7 @@ static void cargar_doc(Doc* doc)
 
     gtk_source_file_loader_load_async(loader, G_PRIORITY_DEFAULT, NULL,
                                       NULL, NULL, NULL,
-        carga_lista, g_object_ref(doc->scr));
+                                      carga_lista, g_object_ref(doc->scr));
     g_object_unref(loader);
 }
 
@@ -633,6 +757,61 @@ static void on_cursor(GObject* obj, GParamSpec* pspec, gpointer user_data)
     actualizar_estado();
 }
 
+/* GtkSourceView pinta el resaltado con GtkTextTag, no con nodos CSS, así que
+ * los colores del código no se pueden definir en quark.css: viven en esquemas
+ * XML propios (quark-dark.xml, quark-light.xml) que siguen la paleta de Quark. */
+
+/* Añade la carpeta donde están los esquemas a la ruta de búsqueda.
+ * Se llama una sola vez al arrancar, antes de crear el primer documento. */
+static void esquemas_registrar(void)
+{
+    const char* archivos[] = { "quark-dark.xml", "quark-light.xml" };
+    GtkSourceStyleSchemeManager* sm = gtk_source_style_scheme_manager_get_default();
+    char* dir_previo = NULL;
+
+    for (gsize i = 0; i < G_N_ELEMENTS(archivos); i++)
+    {
+        char* ruta = ruta_recurso(archivos[i]);
+        if (ruta == NULL)
+        {
+            g_warning("No se encontró %s; se usará un esquema de GtkSourceView", archivos[i]);
+            continue;
+        }
+
+        char* dir = g_path_get_dirname(ruta);
+        if (g_strcmp0(dir, dir_previo) != 0)
+        {
+            gtk_source_style_scheme_manager_append_search_path(sm, dir);
+        }
+
+        g_free(dir_previo);
+        dir_previo = dir;
+        g_free(ruta);
+    }
+
+    g_free(dir_previo);
+}
+
+/* Asigna al buffer el esquema de Quark del tema actual; si no está instalado,
+ * cae al primero disponible de la lista de reserva. */
+static void buffer_aplicar_esquema(GtkSourceBuffer* buffer)
+{
+    static const char* const oscuros[] = { "quark-dark", "Adwaita-dark", "classic-dark", NULL };
+    static const char* const claros[] = { "quark-light", "Adwaita", "classic", NULL };
+    const char* const* ids = tema_oscuro ? oscuros : claros;
+    GtkSourceStyleSchemeManager* sm = gtk_source_style_scheme_manager_get_default();
+
+    for (int i = 0; ids[i] != NULL; i++)
+    {
+        GtkSourceStyleScheme* esquema = gtk_source_style_scheme_manager_get_scheme(sm, ids[i]);
+        if (esquema != NULL)
+        {
+            gtk_source_buffer_set_style_scheme(buffer, esquema);
+            return;
+        }
+    }
+}
+
 static Doc* crear_documento(void)
 {
     Doc* doc = g_new0(Doc, 1);
@@ -661,17 +840,7 @@ static Doc* crear_documento(void)
     gtk_source_view_set_smart_home_end(doc->view, GTK_SOURCE_SMART_HOME_END_BEFORE);
     gtk_source_buffer_set_highlight_matching_brackets(doc->buffer, TRUE);
 
-    GtkSourceStyleSchemeManager* sm = gtk_source_style_scheme_manager_get_default();
-    GtkSourceStyleScheme* esquema = gtk_source_style_scheme_manager_get_scheme(sm, "Adwaita-dark");
-    if (esquema == NULL)
-    {
-        esquema = gtk_source_style_scheme_manager_get_scheme(sm, "classic-dark");
-    }
-
-    if (esquema != NULL)
-    {
-        gtk_source_buffer_set_style_scheme(doc->buffer, esquema);
-    }
+    buffer_aplicar_esquema(doc->buffer);
 
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(doc->scr), GTK_WIDGET(doc->view));
 
@@ -849,7 +1018,12 @@ static void establecer_carpeta(GFile* dir)
     g_set_object(&carpeta_actual, dir);
 
     GListModel* raiz = crear_modelo_dir(dir);
-    GtkTreeListModel* arbol_modelo = gtk_tree_list_model_new(raiz, FALSE, FALSE, hijos_cb, NULL, NULL);
+    GtkTreeListModel* arbol_modelo = gtk_tree_list_model_new(raiz,
+                                                             FALSE,
+                                                             FALSE,
+                                                             hijos_cb,
+                                                             NULL,
+                                                             NULL);
     GtkSingleSelection* sel = gtk_single_selection_new(G_LIST_MODEL(arbol_modelo));
     gtk_single_selection_set_autoselect(sel, FALSE);
     gtk_single_selection_set_can_unselect(sel, TRUE);
@@ -1536,6 +1710,29 @@ static void fermion_btn_limpiar(GtkButton* b, gpointer user_data)
 /* El panel y sus widgets ya vienen de quarkgtk.ui (el paned vertical envuelve
  * al notebook allí mismo, sin reparentar nada en tiempo de ejecución); aquí
  * solo se enganchan referencias, etiquetas de texto y señales. */
+/* Los GtkTextTag no leen CSS, así que sus colores van aquí (los mismos acento,
+ * tenue y peligro de quark-dark.css / quark-light.css, con contraste >= 4.5:1
+ * sobre el fondo del panel en ambos temas). Cambiar la propiedad también
+ * repinta el texto que ya estaba escrito. */
+static void fermion_aplicar_colores(void)
+{
+    const char* colores[][2] = {
+        { "cmd", tema_oscuro ? "#7aa2f7" : "#2a5bd7" },
+        { "meta", tema_oscuro ? "#9aa0a6" : "#646470" },
+        { "stderr", tema_oscuro ? "#f7768e" : "#bd2b45" },
+    };
+    GtkTextTagTable* tabla = gtk_text_buffer_get_tag_table(fermion_buf);
+
+    for (gsize i = 0; i < G_N_ELEMENTS(colores); i++)
+    {
+        GtkTextTag* tag = gtk_text_tag_table_lookup(tabla, colores[i][0]);
+        if (tag != NULL)
+        {
+            g_object_set(tag, "foreground", colores[i][1], NULL);
+        }
+    }
+}
+
 static void fermion_montar(GtkBuilder* b)
 {
     fermion_paned = GTK_WIDGET(gtk_builder_get_object(b, "paned_term"));
@@ -1549,14 +1746,10 @@ static void fermion_montar(GtkBuilder* b)
     fermion_hist = g_ptr_array_new_with_free_func(g_free);
 
     fermion_buf = gtk_text_view_get_buffer(fermion_salida);
-    gtk_text_buffer_create_tag(fermion_buf, "cmd",
-                               "weight", PANGO_WEIGHT_BOLD,
-                               "foreground", "#7aa2f7", NULL);
-    gtk_text_buffer_create_tag(fermion_buf, "meta",
-                               "style", PANGO_STYLE_ITALIC,
-                               "foreground", "#9aa0a6", NULL);
-    gtk_text_buffer_create_tag(fermion_buf, "stderr",
-                               "foreground", "#f7768e", NULL);
+    gtk_text_buffer_create_tag(fermion_buf, "cmd", "weight", PANGO_WEIGHT_BOLD, NULL);
+    gtk_text_buffer_create_tag(fermion_buf, "meta", "style", PANGO_STYLE_ITALIC, NULL);
+    gtk_text_buffer_create_tag(fermion_buf, "stderr", NULL);
+    fermion_aplicar_colores();
 
     GtkTextIter fin;
     gtk_text_buffer_get_end_iter(fermion_buf, &fin);
@@ -1717,7 +1910,7 @@ static gboolean doc_es_c(Doc* d)
 
     const char* id = gtk_source_language_get_id(lang);
     return g_strcmp0(id, "c") == 0 || g_strcmp0(id, "cpp") == 0
-           || g_strcmp0(id, "chdr") == 0 || g_strcmp0(id, "cpphdr") == 0;
+        || g_strcmp0(id, "chdr") == 0 || g_strcmp0(id, "cpphdr") == 0;
 }
 
 /* Formatea el documento. Devuelve TRUE si quedó formateado (aunque no hiciera falta tocarlo). */
@@ -1766,8 +1959,12 @@ static gboolean formatear_doc(Doc* d)
     GtkTextIter it_ins, it_sel;
     gtk_text_buffer_get_iter_at_mark(tb, &it_ins, gtk_text_buffer_get_insert(tb));
     gtk_text_buffer_get_iter_at_mark(tb, &it_sel, gtk_text_buffer_get_selection_bound(tb));
-    glong off_ins = quark_formato_mapear_posicion(original, nuevo, gtk_text_iter_get_offset(&it_ins));
-    glong off_sel = quark_formato_mapear_posicion(original, nuevo, gtk_text_iter_get_offset(&it_sel));
+    glong off_ins = quark_formato_mapear_posicion(original,
+                                                  nuevo,
+                                                  gtk_text_iter_get_offset(&it_ins));
+    glong off_sel = quark_formato_mapear_posicion(original,
+                                                  nuevo,
+                                                  gtk_text_iter_get_offset(&it_sel));
 
     /* un solo paso de deshacer: borrar + insertar dentro de la misma acción de usuario */
     gtk_text_buffer_begin_user_action(tb);
@@ -1826,6 +2023,37 @@ static void act_sidebar_estado(GSimpleAction* a, GVariant* valor, gpointer ud)
     gtk_widget_set_visible(panel_izq, g_variant_get_boolean(valor));
 }
 
+/* Cambia de tema en caliente: tema nativo de GTK, paleta CSS, esquema de cada
+ * documento abierto y colores de la salida de Fermion. */
+static void aplicar_tema(gboolean oscuro)
+{
+    tema_oscuro = oscuro;
+    g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme", oscuro, NULL);
+    css_cargar_colores();
+
+    int n = gtk_notebook_get_n_pages(nb);
+    for (int i = 0; i < n; i++)
+    {
+        Doc* d = doc_de_pagina(gtk_notebook_get_nth_page(nb, i));
+        if (d != NULL)
+        {
+            buffer_aplicar_esquema(d->buffer);
+        }
+    }
+
+    fermion_aplicar_colores();
+}
+
+/* Acción win.toggle-theme (con estado booleano: TRUE = tema oscuro) */
+static void act_tema_estado(GSimpleAction* a, GVariant* valor, gpointer ud)
+{
+    g_simple_action_set_state(a, valor);
+    aplicar_tema(g_variant_get_boolean(valor));
+
+    g_key_file_set_string(config, CONFIG_GRUPO, "tema", tema_oscuro ? "oscuro" : "claro");
+    config_guardar();
+}
+
 static const GActionEntry acciones[] = {
     {.name = "nuevo", .activate = act_nuevo},
     {.name = "abrir", .activate = act_abrir},
@@ -1837,6 +2065,7 @@ static const GActionEntry acciones[] = {
     {.name = "cerrar-pestana", .activate = act_cerrar_pestana},
     {.name = "sidebar", .state = "true", .change_state = act_sidebar_estado},
     {.name = "terminal", .state = "false", .change_state = act_terminal_estado},
+    {.name = "toggle-theme", .state = "true", .change_state = act_tema_estado},
 };
 
 static void atajo(GtkApplication* app, const char* accion, const char* a1, const char* a2)
@@ -1894,28 +2123,33 @@ static gboolean on_drop(
 
 static void cargar_css(void)
 {
+    GdkDisplay* pantalla = gdk_display_get_default();
+
+    /* estilos (usan los @quark_* de la paleta) */
     char* ruta = ruta_recurso("quark.css");
     char* texto = NULL;
 
     if (ruta == NULL || !g_file_get_contents(ruta, &texto, NULL, NULL))
     {
         g_warning("No se encontró quark.css; se usará el tema por defecto");
-        g_free(ruta);
-        return;
+    }
+    else
+    {
+        GtkCssProvider* provider = gtk_css_provider_new();
+        css_cargar_texto(provider, texto);
+        gtk_style_context_add_provider_for_display(pantalla, GTK_STYLE_PROVIDER(provider),
+                                                   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+        g_object_unref(provider);
     }
 
-    GtkCssProvider* provider = gtk_css_provider_new();
-#if GTK_CHECK_VERSION(4, 12, 0)
-    gtk_css_provider_load_from_string(provider, texto);
-#else
-    gtk_css_provider_load_from_data(provider, texto, -1);
-#endif
-    gtk_style_context_add_provider_for_display(gdk_display_get_default(),
-                                               GTK_STYLE_PROVIDER(provider),
-                                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    g_object_unref(provider);
     g_free(texto);
     g_free(ruta);
+
+    /* paleta: proveedor aparte que se recarga al cambiar de tema */
+    css_colores = gtk_css_provider_new();
+    gtk_style_context_add_provider_for_display(pantalla, GTK_STYLE_PROVIDER(css_colores),
+                                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    css_cargar_colores();
 }
 
 /* Comprueba que el .ui trae todos los objetos que el código necesita; así un
@@ -1942,8 +2176,11 @@ static gboolean ui_completa(GtkBuilder* b)
 
 static void inicio(GApplication* app, gpointer user_data)
 {
-    g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme", TRUE, NULL);
+    config_cargar();
+    tema_oscuro = config_tema_oscuro();
+    g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme", tema_oscuro, NULL);
     cargar_css();
+    esquemas_registrar();
 
     char* ruta_ui = ruta_recurso("quarkgtk.ui");
     if (ruta_ui == NULL)
@@ -1994,6 +2231,11 @@ static void inicio(GApplication* app, gpointer user_data)
     g_signal_connect(arbol, "activate", G_CALLBACK(arbol_activado), NULL);
 
     g_action_map_add_action_entries(G_ACTION_MAP(ventana), acciones, G_N_ELEMENTS(acciones), NULL);
+
+    /* el estado inicial del botón de tema es el de la configuración guardada */
+    GAction* act_tema = g_action_map_lookup_action(G_ACTION_MAP(ventana), "toggle-theme");
+    g_simple_action_set_state(G_SIMPLE_ACTION(act_tema), g_variant_new_boolean(tema_oscuro));
+
     atajo(GTK_APPLICATION(app), "win.nuevo", "<Control>n", NULL);
     atajo(GTK_APPLICATION(app), "win.abrir", "<Control>o", NULL);
     atajo(GTK_APPLICATION(app), "win.abrir-carpeta", "<Control><Shift>o", NULL);
@@ -2003,6 +2245,7 @@ static void inicio(GApplication* app, gpointer user_data)
     atajo(GTK_APPLICATION(app), "win.cerrar-pestana", "<Control>w", NULL);
     atajo(GTK_APPLICATION(app), "win.sidebar", "<Control>b", "F9");
     atajo(GTK_APPLICATION(app), "win.terminal", "<Control>j", "F12");
+    atajo(GTK_APPLICATION(app), "win.toggle-theme", "<Control><Shift>d", "<Control><Shift>D");
 
     g_signal_connect(ventana, "close-request", G_CALLBACK(on_close_request), NULL);
     g_signal_connect(nb, "notify::page", G_CALLBACK(on_pagina_cambiada), NULL);
@@ -2054,6 +2297,8 @@ int main(int argc, char**argv)
 
     fermion_liberar();
     g_clear_object(&carpeta_actual);
+    g_clear_object(&css_colores);
+    g_clear_pointer(&config, g_key_file_free);
     g_object_unref(app);
     return fallo_inicio ? 1 : stat;
 }

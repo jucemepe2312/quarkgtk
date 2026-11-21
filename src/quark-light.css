@@ -1,0 +1,17 @@
+/*
+ * quark-light.css - Paleta clara de Quark.
+ *
+ * Solo contiene @define-color; los estilos que los usan están en quark.css.
+ * Quark carga uno de los dos archivos (quark-dark.css / quark-light.css) en un
+ * proveedor aparte y lo recarga al cambiar de tema (win.toggle-theme), así que
+ * cada archivo debe definir exactamente los mismos nombres.
+ * Contraste mínimo: texto 11:1, tenue, acento y peligro >= 4.5:1 sobre panel y cabecera.
+ */
+@define-color quark_bg       #fafafa;
+@define-color quark_panel    #f0f0f2;
+@define-color quark_header   #e8e8ec;
+@define-color quark_border   #d4d4da;
+@define-color quark_text     #2b2b33;
+@define-color quark_dim      #646470;
+@define-color quark_accent   #2a5bd7;
+@define-color quark_danger   #bd2b45;
